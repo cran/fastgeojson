@@ -1,0 +1,28 @@
+The authors of the dependency Rust crates:
+
+extendr-api:
+  The extendr Project Developers
+  (including Andy Thomason, Claus O. Wilke, Mossa M. Reimert,
+   Ilia Kosenkov, Malcolm Barrett, and contributors)
+
+extendr-ffi:
+  The extendr Project Developers
+  (including Andy Thomason, Claus O. Wilke, Mossa M. Reimert,
+   Ilia Kosenkov, Malcolm Barrett, and contributors)
+
+itoa:
+  David Tolnay
+
+ryu:
+  Ulf Adams
+  David Tolnay
+  Reini Urban
+  Other contributors
+
+rayon:
+  The Rayon Project Developers
+  (including Niko Matsakis and contributors)
+
+rayon-core:
+  The Rayon Project Developers
+  (including Niko Matsakis and contributors)

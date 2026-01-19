@@ -1,0 +1,13 @@
+#!/bin/sh
+# configure: generate src/Makevars from src/Makevars.in
+
+UNAME_S=`uname -s`
+DARWIN_LDFLAGS=""
+
+if [ "$UNAME_S" = "Darwin" ]; then
+  DARWIN_LDFLAGS="-Wl,-dead_strip -Wl,-x"
+fi
+
+sed "s|@DARWIN_LDFLAGS@|$DARWIN_LDFLAGS|g" src/Makevars.in > src/Makevars
+
+exit 0
