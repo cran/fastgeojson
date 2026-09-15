@@ -2,74 +2,153 @@
 % Please edit documentation in R/fastgeojson.R
 \name{fastgeojson}
 \alias{fastgeojson}
-\alias{sf_geojson_str}
-\alias{df_json_str}
-\title{High-Performance 'GeoJSON' and 'JSON' Serialization}
+\alias{as_json}
+\title{Fast Serialization of R Objects to JSON and GeoJSON}
 \usage{
-sf_geojson_str(x)
-
-df_json_str(x)
+as_json(
+  x,
+  dataframe = c("rows", "columns", "values"),
+  matrix = c("rowmajor", "columnmajor"),
+  Date = c("ISO8601", "epoch"),
+  POSIXt = c("string", "ISO8601", "epoch", "mongo"),
+  factor = c("string", "integer"),
+  complex = c("string", "list"),
+  raw = c("base64", "hex", "mongo", "int", "js"),
+  null = c("list", "null"),
+  na = c("null", "string"),
+  auto_unbox = FALSE,
+  digits = Inf,
+  pretty = FALSE,
+  force = FALSE,
+  ...
+)
 }
 \arguments{
-\item{x}{An input object (e.g., a data.frame or sf object) to serialize.}
+\item{x}{The object to serialize.}
+
+\item{dataframe}{How to encode data frames: \code{"rows"} (default,
+\verb{[\{"a":1\},\{"a":2\}]}), \code{"columns"} (\verb{\{"a":[1,2]\}}) or \code{"values"}
+(\verb{[[1],[2]]}, one array per row without names).}
+
+\item{matrix}{How to encode matrices: \code{"rowmajor"} (default) or
+\code{"columnmajor"}.}
+
+\item{Date}{How to encode \code{Date}: \code{"ISO8601"} (default, \code{"2015-01-01"}) or
+\code{"epoch"} (days since 1970-01-01).}
+
+\item{POSIXt}{How to encode date-times: \code{"string"} (default, R's own
+\code{format()}), \code{"ISO8601"}, \code{"epoch"} (milliseconds) or \code{"mongo"}.}
+
+\item{factor}{How to encode factors: \code{"string"} (default) or \code{"integer"}.}
+
+\item{complex}{How to encode complex numbers: \code{"string"} (default,
+\code{"1+2i"}) or \code{"list"} (\verb{\{"real":[..],"imaginary":[..]\}}).}
+
+\item{raw}{How to encode raw vectors: \code{"base64"} (default), \code{"hex"},
+\code{"mongo"}, \code{"int"} or \code{"js"}.}
+
+\item{null}{How to encode \code{NULL} inside lists: \code{"list"} (default, \code{{}}) or
+\code{"null"}.}
+
+\item{na}{How to encode missing values: \code{"null"} or \code{"string"}. When not
+supplied, type-specific defaults apply -- in particular, row-oriented data
+frame output omits the key entirely, matching \code{toJSON()}.}
+
+\item{auto_unbox}{If \code{TRUE}, length-one atomic vectors become JSON scalars
+rather than length-one arrays. Defaults to \code{FALSE}.}
+
+\item{digits}{Precision of numeric values. The default, \code{Inf}, writes the
+shortest decimal that reads back as the same double, so nothing is lost.
+A number is a count of decimal places (\code{toJSON()}'s default is \code{4});
+wrap it in \code{\link[base:I]{base::I()}} to count \emph{significant} digits instead; \code{NA} is
+\code{toJSON()}'s 15 significant digits.}
+
+\item{pretty}{If \code{TRUE}, indent the output by two spaces; a number sets the
+indent width.}
+
+\item{force}{If \code{TRUE}, strip S3 classes that would otherwise raise an
+error. \code{sf} objects are exempt so geometry handling is preserved.}
+
+\item{...}{Further arguments passed to the encoder, mirroring
+\code{jsonlite::toJSON()}. Recognised here: \code{keep_vec_names}, \code{rownames},
+\code{json_verbatim}, \code{UTC}, \code{time_format}, \code{always_decimal}, \code{use_signif},
+\code{indent}, \code{sf} and \code{as_bytes}.
+
+\code{as_bytes = TRUE}, which is not a \code{toJSON()} argument, returns the same
+bytes as a \strong{raw vector}, skipping R's string interning -- most of a
+large call. Use it when the JSON is leaving R: \code{writeBin()} to a file or
+connection, an HTTP response body. It cannot be combined with \code{pretty}.}
 }
 \value{
-For \code{sf_geojson_str()}, a length-one character vector with class
-\code{c("geojson", "json")} containing a 'GeoJSON' FeatureCollection string.
-For \code{df_json_str()}, a length-one character vector with class \code{"json"}
-containing a 'JSON' array string.
+A length-one character vector of class \code{"json"}, or
+\code{c("geojson", "json")} for \code{sf} input -- unless \code{as_bytes = TRUE}, which
+returns an unclassed raw vector holding the same bytes.
 }
 \description{
-\code{fastgeojson} provides a high-performance serialization backend for converting
-common R data structures into 'JSON' strings. The core encoders are implemented
-in 'Rust' using the \strong{extendr} framework and are designed to efficiently handle
-large spatial and tabular datasets.
+\code{as_json()} serializes R objects to JSON, and \code{sf} objects to GeoJSON, in
+parallel and with lossless numbers. The encoders are implemented in Rust
+via \strong{extendr}.
 
-The package focuses on two primary use cases:
-\itemize{
-\item Converting \code{sf} objects into 'GeoJSON' FeatureCollections.
-\item Converting rectangular \code{data.frame} objects into 'JSON' arrays.
-}
-
-The resulting 'JSON' is returned as a character string with an appropriate
-class (\code{"geojson"} / \code{"json"}), allowing it to be passed directly to client-side
-'JavaScript' libraries or web frameworks without additional serialization steps.
+It takes the arguments of \code{\link[jsonlite:toJSON]{jsonlite::toJSON()}}, in the same order, and
+follows jsonlite's output conventions: jsonlite's own test suite runs
+against it. Two defaults differ: numbers are written losslessly
+(\code{digits = Inf}, where \code{toJSON()} rounds to 4 decimal places) and \code{sf}
+objects become GeoJSON (\code{sf = "geojson"}, where \code{toJSON()} writes a record
+array).
 }
 \details{
-For sufficiently large inputs, encoding may be performed in parallel using
-multiple CPU cores via the 'rayon' library in 'Rust'. Parallel execution is
-enabled automatically based on input size and geometry type.
+\strong{Coming from jsonlite.} Code that calls \code{toJSON()} with named
+arguments can call \code{as_json()} with the same ones; pass \code{digits = 4} (and
+\code{sf = "dataframe"} for \code{sf} input) to reproduce \code{toJSON()}'s defaults.
+Unknown arguments are accepted through \code{...}, as \code{toJSON()} does.
 
-By returning pre-serialized 'JSON' strings, these functions allow frameworks
-such as 'Shiny' and 'Plumber' to avoid redundant re-encoding during data
-transfer, which can significantly reduce server-side overhead in interactive
-or high-throughput applications.
-}
-\section{Type handling}{
-
+\strong{Encoding strategy.} \code{as_json()} inspects \code{x} and dispatches to the
+appropriate Rust encoder:
 \itemize{
-\item \strong{Numeric:} Written as JSON numbers.
-\item \strong{Logical:} Written as JSON booleans.
-\item \strong{Character:} Written as JSON strings with UTF-8 escaping.
-\item \strong{Factor:} Encoded using their character levels.
-\item \strong{Missing values:} Missing (\code{NA}) values may be omitted from
-output objects to reduce payload size.
-\item \strong{Geometries:} Supports common \code{sf} geometry types including
-POINT, LINESTRING, POLYGON, and their MULTI variants.
-}
+\item \strong{Simple features (\code{sf}):} a GeoJSON \code{FeatureCollection}.
+\item \strong{Data frames:} row- or column-oriented, processed in parallel
+in row chunks for large inputs.
+\item \strong{Atomic vectors and lists:} JSON arrays and objects,
+recursively.
 }
 
+\strong{Type mapping.}
+\itemize{
+\item \strong{Numeric:} JSON numbers, exact by default; see \code{digits}.
+\code{NA}, \code{NaN}, \code{Inf} and \code{-Inf} follow the \code{na} argument.
+\item \strong{Logical:} \code{true} / \code{false}.
+\item \strong{Character:} JSON strings. latin1- and native-encoded
+inputs are translated to UTF-8; bytes that are not valid UTF-8 pass
+through unchanged, as \code{toJSON()} passes them, and a \code{"bytes"}-marked
+string raises the error \code{toJSON()} raises.
+\item \strong{Factor:} labels, or integer codes when \code{factor = "integer"}.
+\item \strong{Date / POSIXt:} controlled by \code{Date} and \code{POSIXt}.
+\item \strong{complex / raw:} controlled by \code{complex} and \code{raw}.
+}
+
+\strong{Threads.} See \code{\link[=fastgeojson_threads]{fastgeojson_threads()}} to control parallelism.
+}
 \examples{
-if (requireNamespace("sf", quietly = TRUE)) {
-   nc <- sf::st_read(system.file("shape/nc.shp", package = "sf"), quiet = TRUE)
-   geo_str <- sf_geojson_str(nc)
-}
+as_json(list(a = 1, b = "foo", c = NA))
+as_json(list(val = 5), auto_unbox = TRUE)
 
-df <- data.frame(x = runif(10), y = runif(10))
-json_str <- df_json_str(df)
+df <- data.frame(x = c(1.5, 2.5), y = c("a", "b"))
+as_json(df)
+as_json(df, dataframe = "columns")
+
+# Straight out to a file, without interning the result as an R string.
+f <- tempfile()
+con <- file(f, "wb")
+writeBin(as_json(df, as_bytes = TRUE), con)
+close(con)
+unlink(f)
+
+if (requireNamespace("sf", quietly = TRUE)) {
+  nc <- sf::st_read(system.file("shape/nc.shp", package = "sf"), quiet = TRUE)
+  geo <- as_json(nc[1:2, ])
+}
 
 }
 \seealso{
-\code{\link[=sf_geojson_str]{sf_geojson_str()}} for spatial data,
-\code{\link[=df_json_str]{df_json_str()}} for tabular data.
+\code{\link[=fastgeojson_threads]{fastgeojson_threads()}} to control parallelism.
 }

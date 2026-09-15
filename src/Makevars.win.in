@@ -1,7 +1,5 @@
-## Generated from src/Makevars.in by tools/config.R -- DO NOT EDIT.
+## Generated from src/Makevars.win.in by tools/config.R -- DO NOT EDIT.
 ## Regenerate with: Rscript tools/config.R
-##
-## Portable make only: no GNU-make-only constructs.
 
 TARGET_DIR = rust/target
 LIBDIR     = @LIBDIR@
@@ -33,17 +31,17 @@ clean:
 
 $(SHLIB): $(STATLIB)
 
-# rustup installs to $HOME/.cargo/bin, which a login shell puts on PATH but
-# the environment R CMD INSTALL inherits often does not -- RStudio Server, a
-# container, a cron job. tools/msrv.R adds that directory before its own
-# probe, so configure reported the toolchain found and this recipe then
-# could not see it: "rustc: command not found" on a clean rocker image. The
-# same addition here. PATH set on one recipe line is not seen by the next,
-# so each command that needs it sets it in its own shell.
 $(STATLIB):
 	@echo "== fastgeojson: Rust toolchain =="
-	PATH="$(PATH):$(HOME)/.cargo/bin" rustc --version
-	PATH="$(PATH):$(HOME)/.cargo/bin" cargo --version
+	rustc --version
+	cargo --version
+
+	# Rust's *-pc-windows-gnu std references libgcc_eh, which Rtools'
+	# static-posix toolchain does not ship under that name. An empty stub on
+	# LIBRARY_PATH satisfies the reference; the real unwinder comes from
+	# -static-libgcc at the final R link step.
+	mkdir -p $(TARGET_DIR)/libgcc_mock
+	touch $(TARGET_DIR)/libgcc_mock/libgcc_eh.a
 
 	@echo "== fastgeojson: vendored dependencies =="
 	mkdir -p rust/.cargo
@@ -56,8 +54,8 @@ $(STATLIB):
 	fi
 
 	@echo "== fastgeojson: cargo build (target: @TARGET@) =="
-	PATH="$(PATH):$(HOME)/.cargo/bin"; export PATH; \
-	CARGO_HOME="`pwd`/rust/.cargo"; export CARGO_HOME; \
+	export LIBRARY_PATH="$(LIBRARY_PATH);`pwd`/$(TARGET_DIR)/libgcc_mock" && \
+	export CARGO_HOME="`pwd`/rust/.cargo" && \
 	cargo build $(CARGO_BUILD_FLAGS) \
 		--manifest-path=rust/Cargo.toml \
 		--target-dir=$(TARGET_DIR)

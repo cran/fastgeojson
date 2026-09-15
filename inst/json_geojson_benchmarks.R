@@ -28,7 +28,7 @@ microbenchmark(
     yyj <- yyjsonr::write_json_str(df)
   },
   fastgeojson = {
-    fst <- fastgeojson::df_json_str(df)
+    fst <- fastgeojson::as_json(df, dataframe = "columns", strict_atomic = TRUE, json_verbatim = TRUE,  force = FALSE, auto_unbox = TRUE, digits = 2, use_signif = TRUE, POSIXt = "ISO8601", UTC = TRUE)
   },
   times = 10L
 )
@@ -53,7 +53,7 @@ microbenchmark(
     yyj <- yyjsonr::write_geojson_str(large_points_sf)
   },
   fastgeojson = {
-    fst <- fastgeojson::sf_geojson_str(large_points_sf)
+    fst <- fastgeojson::as_json(large_points_sf)
   },
   times = 10L
 )
